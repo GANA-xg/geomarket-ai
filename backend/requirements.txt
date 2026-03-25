@@ -21,3 +21,10 @@ pandas==2.2.0
 
 # Quant and Data
 numpy==1.26.4
+fastapi
+uvicorn
+pydantic
+python-dotenv
+requests
+sqlalchemy
+psycopg2-binary
