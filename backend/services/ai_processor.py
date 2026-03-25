@@ -115,6 +115,130 @@ class AIProcessor:
                 return {}
         return {}
 
+    @staticmethod
+    def _safe_json_array_extract(content: str) -> list[dict[str, Any]]:
+        if not content:
+            return []
+        text = content.strip()
+        try:
+            parsed = json.loads(text)
+            if isinstance(parsed, list):
+                return [item for item in parsed if isinstance(item, dict)]
+        except Exception:
+            pass
+
+        # Handle code fences and partial completions.
+        match = re.search(r"\[.*\]", text, re.DOTALL)
+        if match:
+            try:
+                parsed = json.loads(match.group(0))
+                if isinstance(parsed, list):
+                    return [item for item in parsed if isinstance(item, dict)]
+            except Exception:
+                return []
+        return []
+
+    @staticmethod
+    def _fallback_geo_coordinates(location: str) -> tuple[float, float] | None:
+        mapping = {
+            "india": (20.5937, 78.9629),
+            "middle east": (29.2985, 42.5510),
+            "saudi arabia": (23.8859, 45.0792),
+            "uae": (23.4241, 53.8478),
+            "iran": (32.4279, 53.6880),
+            "israel": (31.0461, 34.8516),
+            "iraq": (33.2232, 43.6793),
+            "europe": (54.5260, 15.2551),
+            "asia": (34.0479, 100.6197),
+            "china": (35.8617, 104.1954),
+            "russia": (61.5240, 105.3188),
+            "united states": (37.0902, -95.7129),
+            "usa": (37.0902, -95.7129),
+            "uk": (55.3781, -3.4360),
+            "united kingdom": (55.3781, -3.4360),
+            "global": (20.0, 0.0),
+        }
+        return mapping.get((location or "").strip().lower())
+
+    def extract_geo_locations(self, article_text: str) -> list[dict[str, Any]]:
+        if not article_text:
+            return []
+
+        if not self.openai_client:
+            return []
+
+        system_prompt = (
+            "Extract ALL geopolitical locations from this news.\n\n"
+            "STRICT RULES:\n"
+            "- Minimum 3 locations if any global topic exists\n"
+            "- Expand regions: 'Middle East' -> Saudi Arabia, UAE, Iran, Israel, Iraq\n"
+            "- Always include India if economic/global impact\n"
+            "- Assign: lat (accurate), lng (accurate), impact (0 to 1), sentiment (-1 to +1)\n\n"
+            "RETURN STRICT JSON:\n"
+            "[\n"
+            "  {\n"
+            "    \"location\": \"string\",\n"
+            "    \"lat\": number,\n"
+            "    \"lng\": number,\n"
+            "    \"impact\": number,\n"
+            "    \"sentiment\": number\n"
+            "  }\n"
+            "]\n\n"
+            "NEVER return empty array unless completely irrelevant.\n"
+            "Return only JSON array. No markdown, no explanation."
+        )
+
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                temperature=0.0,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": article_text[:6000]},
+                ],
+            )
+            content = response.choices[0].message.content if response.choices else ""
+            parsed = self._safe_json_array_extract(content or "")
+        except Exception:
+            return []
+
+        normalized: list[dict[str, Any]] = []
+        for item in parsed:
+            location = str(item.get("location", "")).strip()
+            if not location:
+                continue
+
+            lat = item.get("lat")
+            lng = item.get("lng")
+            if lat is None or lng is None:
+                fallback = self._fallback_geo_coordinates(location)
+                if fallback:
+                    lat, lng = fallback
+
+            try:
+                lat_f = float(lat)
+                lng_f = float(lng)
+                impact = max(0.0, min(1.0, float(item.get("impact", 0.0))))
+                sentiment = max(-1.0, min(1.0, float(item.get("sentiment", 0.0))))
+            except (TypeError, ValueError):
+                continue
+
+            if not (-90 <= lat_f <= 90 and -180 <= lng_f <= 180):
+                continue
+
+            normalized.append(
+                {
+                    "location": location,
+                    "lat": lat_f,
+                    "lng": lng_f,
+                    "impact": impact,
+                    "sentiment": sentiment,
+                }
+            )
+
+        print(f"[geo-extraction] locations={normalized}")
+        return normalized
+
     def analyze_sector_impact(self, headline: str, body: str) -> dict[str, Any]:
         default_json = {
             "event_type": "Economic Policy",

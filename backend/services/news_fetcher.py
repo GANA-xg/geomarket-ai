@@ -1,4 +1,3 @@
-import os
 import sys
 from datetime import datetime, timezone
 from typing import Any
@@ -9,7 +8,10 @@ from sqlalchemy.orm import Session
 sys.path.insert(0, "/app")
 
 from models.schema import GeoMarker, NewsEvent  # noqa: E402
+from config.settings import settings  # noqa: E402
 from services.ai_processor import ai_processor  # noqa: E402
+from services.cache import TTLCache  # noqa: E402
+from services.http_utils import request_json_with_retries  # noqa: E402
 from services.realtime_hub import realtime_hub  # noqa: E402
 
 NEWS_API_URL = "https://newsapi.org/v2/everything"
@@ -17,7 +19,12 @@ NEWS_API_URL = "https://newsapi.org/v2/everything"
 
 class NewsFetcher:
     def __init__(self):
-        self.api_key = os.getenv("NEWS_API_KEY", "")
+        self.api_key = settings.NEWS_API_KEY
+        self.timeout = float(settings.REQUEST_TIMEOUT_SECONDS)
+        self.cache = TTLCache(ttl_seconds=settings.CACHE_TTL_SECONDS)
+        self._client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=100, max_keepalive_connections=20)
+        )
 
     @staticmethod
     def _resolve_lat_lng(region: str) -> tuple[float, float]:
@@ -32,7 +39,11 @@ class NewsFetcher:
         }
         return mapping.get(region, (20.0, 0.0))
 
-    async def fetch_latest_news(self, query: str = "geopolitics OR economy OR markets", page_size: int = 25) -> list[dict[str, Any]]:
+    async def fetch_latest_news(
+        self,
+        query: str = "India OR global economy OR oil OR war OR inflation",
+        page_size: int = 10,
+    ) -> list[dict[str, Any]]:
         def fallback_articles() -> list[dict[str, Any]]:
             now = datetime.now(timezone.utc).isoformat()
             return [
@@ -59,33 +70,46 @@ class NewsFetcher:
             "q": query,
             "language": "en",
             "sortBy": "publishedAt",
-            "pageSize": page_size,
+            "pageSize": min(max(1, page_size), 10),
             "apiKey": self.api_key,
         }
-        try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.get(NEWS_API_URL, params=params)
-                response.raise_for_status()
-                data = response.json()
-        except Exception:
-            return fallback_articles()
 
-        results: list[dict[str, Any]] = []
-        for article in data.get("articles", []):
-            headline = article.get("title") or "Untitled"
-            body = article.get("content") or article.get("description") or ""
-            source = (article.get("source") or {}).get("name") or "Unknown"
-            published = article.get("publishedAt") or datetime.now(timezone.utc).isoformat()
-            results.append(
-                {
-                    "headline": headline,
-                    "source": source,
-                    "published_at": published,
-                    "raw_text": body,
-                    "region": "Global",
-                }
-            )
-        return results
+        cache_key = f"news:{params['q']}:{params['pageSize']}"
+
+        async def _load_news() -> list[dict[str, Any]]:
+            try:
+                data = await request_json_with_retries(
+                    self._client,
+                    "GET",
+                    NEWS_API_URL,
+                    params=params,
+                    timeout=self.timeout,
+                    retries=2,
+                    validate=lambda payload: isinstance(payload, dict) and "articles" in payload,
+                )
+            except Exception:
+                return fallback_articles()
+
+            results: list[dict[str, Any]] = []
+            for article in data.get("articles", [])[: params["pageSize"]]:
+                headline = article.get("title") or "Untitled"
+                body = article.get("content") or article.get("description") or ""
+                source = (article.get("source") or {}).get("name") or "Unknown"
+                published = article.get("publishedAt") or datetime.now(timezone.utc).isoformat()
+
+                results.append(
+                    {
+                        "headline": str(headline).strip(),
+                        "source": str(source).strip(),
+                        "published_at": str(published),
+                        "raw_text": str(body).strip(),
+                        "region": "Global",
+                    }
+                )
+
+            return results if results else fallback_articles()
+
+        return await self.cache.get_or_set(cache_key, _load_news)
 
     async def process_news_cycle(self, db: Session):
         articles = await self.fetch_latest_news()

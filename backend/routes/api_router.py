@@ -13,13 +13,22 @@ sys.path.insert(0, "/app")
 
 from database.session import get_db  # noqa: E402
 from models.schema import Alert, GeoMarker, NewsEvent, Portfolio, QuantScore, Signal, Stock  # noqa: E402
+from routes.market import market_router  # noqa: E402
+from services.heatmap_service import heatmap_service  # noqa: E402
 from services.realtime_hub import realtime_hub  # noqa: E402
 
 api_router = APIRouter()
+api_router.include_router(market_router)
 
 
 class PositionCreateRequest(BaseModel):
     ticker: str
+    quantity: int
+    entry_price: float
+    entry_date: Optional[str] = None
+
+
+class PositionUpdateRequest(BaseModel):
     quantity: int
     entry_price: float
     entry_date: Optional[str] = None
@@ -145,6 +154,11 @@ def get_geo_markers(db: Session = Depends(get_db)):
     ]
 
 
+@api_router.get("/geo-heatmap")
+async def get_geo_heatmap(db: Session = Depends(get_db)):
+    return await heatmap_service.build_heatmap(db=db, max_articles=30, max_points=100)
+
+
 @api_router.get("/portfolio/summary")
 def get_portfolio_summary(db: Session = Depends(get_db)):
     rows = (
@@ -238,6 +252,40 @@ async def create_position(request: PositionCreateRequest, db: Session = Depends(
         )
 
     return {"status": "created", "portfolio_id": position.id}
+
+
+@api_router.put("/portfolio/positions/{portfolio_id}")
+async def update_position(portfolio_id: int, request: PositionUpdateRequest, db: Session = Depends(get_db)):
+    position = db.query(Portfolio).filter(Portfolio.id == portfolio_id, Portfolio.status == "OPEN").first()
+    if not position:
+        raise HTTPException(status_code=404, detail="Open portfolio position not found")
+
+    if request.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Quantity must be greater than zero")
+    if request.entry_price <= 0:
+        raise HTTPException(status_code=400, detail="Entry price must be greater than zero")
+
+    position.quantity = request.quantity
+    position.entry_price = request.entry_price
+    if request.entry_date:
+        try:
+            position.entry_date = datetime.fromisoformat(request.entry_date)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid entry_date format")
+
+    db.commit()
+    return {"status": "updated", "portfolio_id": portfolio_id}
+
+
+@api_router.delete("/portfolio/positions/{portfolio_id}")
+async def delete_position(portfolio_id: int, db: Session = Depends(get_db)):
+    position = db.query(Portfolio).filter(Portfolio.id == portfolio_id, Portfolio.status == "OPEN").first()
+    if not position:
+        raise HTTPException(status_code=404, detail="Open portfolio position not found")
+
+    db.delete(position)
+    db.commit()
+    return {"status": "deleted", "portfolio_id": portfolio_id}
 
 
 @api_router.get("/dashboard/stats")
