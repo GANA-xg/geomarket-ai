@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from services.analysis import market_analysis_service
 from services.fundamentals import fundamentals_service
+from services.http_utils import ExternalAPIError
 from services.market_data import market_data_service
 from services.news_fetcher import news_fetcher
 
@@ -35,6 +36,8 @@ async def get_market_signal(symbol: str):
             news_items=news_items,
         )
         return signal
+    except ExternalAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to generate market signal: {exc}") from exc
 
@@ -63,5 +66,7 @@ async def test_all(symbol: str = Query(default="RELIANCE.NS")):
             "fundamentals": fundamentals_data,
             "news_count": len(news_items),
         }
+    except ExternalAPIError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Integration test route failed: {exc}") from exc

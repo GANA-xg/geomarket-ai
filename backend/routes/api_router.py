@@ -3,11 +3,15 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Optional
 
-import yfinance as yf
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
+
+try:
+    import yfinance as yf
+except Exception:
+    yf = None
 
 sys.path.insert(0, "/app")
 
@@ -172,11 +176,12 @@ def get_portfolio_summary(db: Session = Depends(get_db)):
     payload = []
     for position, stock in rows:
         current_price = stock.current_price
-        try:
-            yf_info = yf.Ticker(f"{stock.ticker}.NS").fast_info
-            current_price = float(yf_info.last_price) if yf_info and yf_info.last_price else current_price
-        except Exception:
-            pass
+        if yf:
+            try:
+                yf_info = yf.Ticker(f"{stock.ticker}.NS").fast_info
+                current_price = float(yf_info.last_price) if yf_info and yf_info.last_price else current_price
+            except Exception:
+                pass
 
         if current_price is None:
             current_price = position.entry_price

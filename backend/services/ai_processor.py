@@ -4,9 +4,12 @@ import re
 import sys
 from typing import Any
 
-import spacy
-
 sys.path.insert(0, "/app")
+
+try:
+    import spacy
+except Exception:
+    spacy = None
 
 try:
     from openai import OpenAI
@@ -22,24 +25,29 @@ except Exception:
 class AIProcessor:
     def __init__(self):
         self.finbert = None
-        if pipeline:
+        self.enable_finbert = os.getenv("ENABLE_FINBERT", "0").strip() in {"1", "true", "TRUE"}
+        if pipeline and self.enable_finbert:
             try:
                 self.finbert = pipeline("text-classification", model="ProsusAI/finbert", truncation=True)
             except Exception:
                 self.finbert = None
 
         self.nlp = None
-        for model_name in ("en_core_web_lg", "en_core_web_sm"):
-            try:
-                self.nlp = spacy.load(model_name)
-                break
-            except Exception:
-                continue
+        if spacy:
+            for model_name in ("en_core_web_lg", "en_core_web_sm"):
+                try:
+                    self.nlp = spacy.load(model_name)
+                    break
+                except Exception:
+                    continue
 
         self.openai_client = None
         api_key = os.getenv("OPENAI_API_KEY", "")
         if OpenAI and api_key:
-            self.openai_client = OpenAI(api_key=api_key)
+            try:
+                self.openai_client = OpenAI(api_key=api_key)
+            except Exception:
+                self.openai_client = None
 
     @staticmethod
     def _normalize_finbert_label(label: str) -> str:

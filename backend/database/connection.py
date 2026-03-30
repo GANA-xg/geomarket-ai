@@ -8,4 +8,4 @@ load_dotenv()
 
 from database.session import Base, SessionLocal, engine, get_db  # noqa: E402
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/geomarket")
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip() or "sqlite:///./geomarket.db"

@@ -5,7 +5,10 @@ import sys
 from datetime import datetime, timezone
 from typing import Any
 
-import yfinance as yf
+try:
+    import yfinance as yf
+except Exception:
+    yf = None
 
 sys.path.insert(0, "/app")
 

@@ -1,10 +1,15 @@
 import os
 import sys
 import asyncio
+import logging
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+
+try:
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+except Exception:
+    AsyncIOScheduler = None
 
 sys.path.insert(0, "/app")
 
@@ -14,31 +19,48 @@ from services.buffett_screener import buffett_screener
 from services.news_fetcher import news_fetcher
 from services.realtime_hub import realtime_hub
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="GeoMarket AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "https://geomarket-ai.vercel.app",
+        "https://geomarket.ai",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-scheduler = AsyncIOScheduler(timezone="UTC")
+scheduler = AsyncIOScheduler(timezone="UTC") if AsyncIOScheduler else None
 
 
 async def scheduled_news_job():
-    db = SessionLocal()
+    db = None
     try:
+        db = SessionLocal()
         await news_fetcher.process_news_cycle(db)
+    except Exception as exc:
+        logger.warning("Scheduled news job skipped: %s", exc)
     finally:
-        db.close()
+        if db is not None:
+            db.close()
+
+
+async def run_buffett_screen_job():
+    try:
+        await asyncio.to_thread(buffett_screener.run_full_screen)
+    except Exception as exc:
+        logger.warning("Buffett screener skipped: %s", exc)
 
 
 @app.on_event("startup")
 async def on_startup():
-    asyncio.create_task(asyncio.to_thread(buffett_screener.run_full_screen))
-    if not scheduler.get_jobs():
+    asyncio.create_task(run_buffett_screen_job())
+    if scheduler and not scheduler.get_jobs():
         scheduler.add_job(scheduled_news_job, "interval", minutes=15, id="news-processing")
         scheduler.start()
     # Prime one run at startup so dashboard has data quickly, without blocking startup.
@@ -47,13 +69,18 @@ async def on_startup():
 
 @app.on_event("shutdown")
 def on_shutdown():
-    if scheduler.running:
+    if scheduler and scheduler.running:
         scheduler.shutdown(wait=False)
 
 
 @app.get("/")
 def read_root():
     return {"message": "Welcome to GeoMarket AI API"}
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 
 app.include_router(api_router, prefix="/api")

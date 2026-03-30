@@ -44,7 +44,11 @@ export default function PortfolioPage() {
   }, []);
 
   useEffect(() => {
-    const wsBase = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+    const defaultWsBase =
+      typeof window !== "undefined" && window.location.protocol === "https:"
+        ? "wss://geomarket.ai"
+        : "ws://localhost:8000";
+    const wsBase = process.env.NEXT_PUBLIC_WS_URL || defaultWsBase;
     const socket = new WebSocket(`${wsBase}/ws/alerts`);
 
     socket.onmessage = (event) => {
