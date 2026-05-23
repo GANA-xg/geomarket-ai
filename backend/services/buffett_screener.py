@@ -10,7 +10,7 @@ try:
 except Exception:
     yf = None
 
-sys.path.insert(0, "/app")
+ # sys.path.insert(0, "/app")
 
 from database.session import SessionLocal  # noqa: E402
 from models.schema import QuantScore, Signal, Stock  # noqa: E402

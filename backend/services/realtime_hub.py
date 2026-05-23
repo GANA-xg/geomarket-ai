@@ -1,12 +1,8 @@
 import asyncio
 import json
-import os
-import sys
 from typing import Any
 
 from fastapi import WebSocket
-
-sys.path.insert(0, "/app")
 
 
 class TopicConnectionManager:
@@ -18,18 +14,17 @@ class TopicConnectionManager:
         }
         self._lock = asyncio.Lock()
 
-    async def connect(self, topic: str, websocket: WebSocket):
+    async def connect(self, topic: str, websocket: WebSocket) -> None:
         await websocket.accept()
         async with self._lock:
             self._connections.setdefault(topic, set()).add(websocket)
 
-    async def disconnect(self, topic: str, websocket: WebSocket):
+    async def disconnect(self, topic: str, websocket: WebSocket) -> None:
         async with self._lock:
             topic_set = self._connections.get(topic, set())
-            if websocket in topic_set:
-                topic_set.remove(websocket)
+            topic_set.discard(websocket)
 
-    async def broadcast(self, topic: str, payload: dict[str, Any]):
+    async def broadcast(self, topic: str, payload: dict[str, Any]) -> None:
         message = json.dumps(payload, default=str)
         sockets = list(self._connections.get(topic, set()))
         stale: list[WebSocket] = []
@@ -43,8 +38,7 @@ class TopicConnectionManager:
             async with self._lock:
                 topic_set = self._connections.get(topic, set())
                 for socket in stale:
-                    if socket in topic_set:
-                        topic_set.remove(socket)
+                    topic_set.discard(socket)
 
 
 realtime_hub = TopicConnectionManager()

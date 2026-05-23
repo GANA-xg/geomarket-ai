@@ -1,11 +1,7 @@
 import os
-import sys
-
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base, sessionmaker
-
-sys.path.insert(0, "/app")
 
 DEFAULT_SQLITE_URL = "sqlite:///./geomarket.db"
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip() or DEFAULT_SQLITE_URL

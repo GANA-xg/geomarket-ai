@@ -1,20 +1,44 @@
-fastapi==0.109.0
-uvicorn[standard]==0.27.0.post1
-sqlalchemy==2.0.25
-alembic==1.13.1
-psycopg2-binary==2.9.9
-pydantic==2.5.3
-pydantic-settings==2.1.0
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Database
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg2-binary==2.9.10
+
+# Config & validation
+pydantic==2.10.3
+pydantic-settings==2.6.1
 python-dotenv==1.0.1
-httpx==0.26.0
+
+# HTTP client
+httpx==0.28.1
+
+# Scheduling
 apscheduler==3.10.4
-websockets==12.0
-yfinance==0.2.54
-openai==1.71.0
+
+# WebSockets
+websockets==14.1
+
+# Market data
+yfinance==0.2.51
+
+# AI / LLM
+openai==1.58.1
+
+# NLP (lightweight — FinBERT/torch is opt-in via ENABLE_FINBERT=1)
+transformers==4.47.1
+# torch is intentionally excluded from default install to keep RAM low.
+# Install separately if needed: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# NER
+spacy==3.8.3
+
+# Geocoding
 geopy==2.4.1
-transformers==4.42.3
-torch==2.10.0
-spacy==3.7.2
-pandas==2.2.0
-numpy==1.26.4
+
+# Data
+pandas==2.2.3
+numpy==2.2.0
 requests==2.32.3

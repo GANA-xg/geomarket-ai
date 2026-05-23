@@ -1,0 +1,65 @@
+# ─── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+backend/venv/
+backend/.venv/
+backend_venv/
+
+# SQLite dev database (never commit real data)
+*.db
+*.sqlite
+*.sqlite3
+
+# ─── Node / Frontend ──────────────────────────────────────────────────────────
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+*.tsbuildinfo
+
+# ─── Environment files ────────────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# Keep .env.example committed
+!.env.example
+
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# ─── Editors ──────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+*.pem
+*.key
+package-lock.json

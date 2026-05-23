@@ -1,9 +1,6 @@
 import os
-import sys
 
 from geopy.geocoders import Nominatim
-
-sys.path.insert(0, "/app")
 
 from models.schema import GeoMarker
 

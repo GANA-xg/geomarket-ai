@@ -1,4 +1,3 @@
-import sys
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Optional
@@ -13,8 +12,6 @@ try:
 except Exception:
     yf = None
 
-sys.path.insert(0, "/app")
-
 from database.session import get_db  # noqa: E402
 from models.schema import Alert, GeoMarker, NewsEvent, Portfolio, QuantScore, Signal, Stock  # noqa: E402
 from routes.market import market_router  # noqa: E402
@@ -23,7 +20,7 @@ from services.realtime_hub import realtime_hub  # noqa: E402
 
 api_router = APIRouter()
 api_router.include_router(market_router)
-
+	
 
 class PositionCreateRequest(BaseModel):
     ticker: str

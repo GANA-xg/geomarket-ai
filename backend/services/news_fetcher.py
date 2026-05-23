@@ -1,11 +1,8 @@
-import sys
-from datetime import datetime, timezone
+import os
 from typing import Any
-
+from datetime import datetime, timezone
 import httpx
 from sqlalchemy.orm import Session
-
-sys.path.insert(0, "/app")
 
 from models.schema import GeoMarker, NewsEvent  # noqa: E402
 from config.settings import settings  # noqa: E402

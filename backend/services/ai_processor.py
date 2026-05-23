@@ -1,10 +1,9 @@
 import json
 import os
 import re
-import sys
 from typing import Any
 
-sys.path.insert(0, "/app")
+ # sys.path.insert(0, "/app")
 
 try:
     import spacy
