@@ -11,15 +11,16 @@
   "dependencies": {
     "@swc/helpers": "^0.5.15",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.24",
     "leaflet": "^1.9.4",
     "leaflet.heat": "^0.2.0",
-    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.539.0",
     "next": "14.2.3",
     "react": "^18",
     "react-dom": "^18",
     "recharts": "^3.1.2",
     "tailwind-merge": "^3.3.1",
-    "lucide-react": "^0.539.0"
+    "three": "^0.184.0"
   },
   "optionalDependencies": {
     "@next/swc-linux-arm64-gnu": "14.2.3"
