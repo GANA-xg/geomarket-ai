@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 import os
+import sys
 from dotenv import load_dotenv
 
 from sqlalchemy import engine_from_config
@@ -11,6 +12,9 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
+# Ensure the backend directory is in the python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Load environment variables from backend/.env so DATABASE_URL is available
 load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
@@ -18,11 +22,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 fileConfig(config.config_file_name)
 
 # Import the SQLAlchemy models' metadata here
-try:
-    from database.session import Base, engine  # noqa: E402
-    target_metadata = Base.metadata
-except Exception:
-    target_metadata = None
+from database.session import Base, engine  # noqa: E402
+target_metadata = Base.metadata
 
 
 def run_migrations_offline():

@@ -6,6 +6,10 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 DEFAULT_SQLITE_URL = "sqlite:///./geomarket.db"
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip() or DEFAULT_SQLITE_URL
 
+# SQLAlchemy 1.4+ and 2.0 require postgresql:// instead of postgres://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 try:
     engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 except SQLAlchemyError:
